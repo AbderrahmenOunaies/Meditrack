@@ -1,0 +1,162 @@
+
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nom VARCHAR(100) NOT NULL,
+    prenom VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    motDePasse VARCHAR(255) NOT NULL,
+    role ENUM('secretaire', 'admin', 'medecin', 'patient') NOT NULL,
+    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table secretaire (hérite de users)
+CREATE TABLE secretaire (
+    id INT PRIMARY KEY,
+    medecin_id INT NOT NULL UNIQUE,
+    FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (medecin_id) REFERENCES medecin(id) ON DELETE CASCADE
+);
+
+-- Table admin (hérite de users)
+CREATE TABLE admin (
+    id INT PRIMARY KEY,
+    FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE
+);
+z
+-- Table medecin (hérite de users)
+CREATE TABLE medecin (
+    id INT PRIMARY KEY,
+    specialite VARCHAR(100),
+    numero_ordre VARCHAR(50),
+    recrute_secretaire TINYINT(1) DEFAULT 0,
+    FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE temp_secretaire (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    medecin_id INT NOT NULL,
+    nom VARCHAR(100) NOT NULL,
+    prenom VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    telephone VARCHAR(30) NULL,
+    experience TEXT NULL,
+    motivation TEXT NULL,
+    mot_de_passe VARCHAR(255) NOT NULL,
+    statut ENUM('pending', 'en_attente', 'refusee') DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (medecin_id) REFERENCES medecin(id) ON DELETE CASCADE
+);
+
+CREATE TABLE temp_medecin (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nom VARCHAR(100) NOT NULL,
+    prenom VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    mot_de_passe VARCHAR(255) NOT NULL,
+    specialite VARCHAR(100),
+    numero_ordre VARCHAR(50),
+    pieces_justificatives TEXT NULL,
+    statut ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    admin_id INT NULL,
+    decision_at DATETIME NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_temp_medecin_email (email),
+    FOREIGN KEY (admin_id) REFERENCES admin(id) ON DELETE SET NULL
+);
+
+-- Table patient (hérite de users)
+CREATE TABLE patient (
+    id INT PRIMARY KEY,
+    date_naissance DATE,
+    adresse TEXT,
+    telephone VARCHAR(20),
+    assurance_maladie VARCHAR(50),
+    FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE dossiermedical (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    idPatient INT NOT NULL,
+    observations TEXT,
+    traitements TEXT,
+    allergies TEXT,
+    antecedents TEXT,
+    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    date_modification DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (idPatient) REFERENCES Patient(id) ON DELETE CASCADE
+);
+
+CREATE TABLE ordonnance (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    idPatient INT NOT NULL,
+    idMedecin INT NOT NULL,
+    date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    contenu TEXT NOT NULL,
+    medicaments TEXT,
+    posologie TEXT,
+    duree_traitement VARCHAR(50),
+    FOREIGN KEY (idPatient) REFERENCES Patient(id) ON DELETE CASCADE,
+    FOREIGN KEY (idMedecin) REFERENCES Medecin(id) ON DELETE CASCADE
+);
+
+CREATE TABLE rendezvous (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    idPatient INT NOT NULL,
+    idMedecin INT NOT NULL,
+    date DATETIME NOT NULL,
+    statut ENUM('planifie', 'confirme', 'annule', 'termine') DEFAULT 'planifie',
+    motif TEXT,
+    duree INT DEFAULT 30 COMMENT 'Durée en minutes',
+    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (idPatient) REFERENCES Patient(id) ON DELETE CASCADE,
+    FOREIGN KEY (idMedecin) REFERENCES Medecin(id) ON DELETE CASCADE
+);
+
+CREATE TABLE notification (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    iduser INT NOT NULL,
+    titre VARCHAR(255) NOT NULL,
+    contenu TEXT NOT NULL,
+    type ENUM('rendez_vous', 'ordonnance', 'facture', 'rappel', 'systeme') NOT NULL,
+    lien VARCHAR(255) COMMENT 'Lien vers la ressource concernée',
+    lu BOOLEAN DEFAULT FALSE,
+    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    date_lu DATETIME NULL,
+    FOREIGN KEY (iduser) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE user_notification_settings (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    channel_email TINYINT(1) DEFAULT 1,
+    channel_inapp TINYINT(1) DEFAULT 1,
+    digest_frequency ENUM('none', 'daily', 'weekly') DEFAULT 'none',
+    preferences JSON NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE email_queue (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    recipient VARCHAR(255) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    body LONGTEXT NOT NULL,
+    headers JSON NULL,
+    status ENUM('queued', 'sent', 'failed') DEFAULT 'queued',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    processed_at DATETIME NULL
+);
+
+CREATE TABLE facture (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    idPatient INT NOT NULL,
+    idRendezVous INT NULL,
+    montant DECIMAL(10,2) NOT NULL,
+    date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    date_echeance DATE,
+    statutPaiement ENUM('en_attente', 'paye', 'annule', 'retard') DEFAULT 'en_attente',
+    details TEXT,
+    mode_paiement VARCHAR(50),
+    FOREIGN KEY (idPatient) REFERENCES patient(id) ON DELETE CASCADE,
+    FOREIGN KEY (idRendezVous) REFERENCES RendezVous(id) ON DELETE SET NULL
+);

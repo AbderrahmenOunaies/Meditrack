@@ -1,0 +1,124 @@
+CREATE DATABASE IF NOT EXISTS `meditrack-v2`;
+USE `meditrack-v2`;
+
+-- =========================
+-- Table Users (classe mère)
+-- =========================
+CREATE TABLE Users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nom VARCHAR(100) NOT NULL,
+    prenom VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    motDePasse VARCHAR(255) NOT NULL,
+    role ENUM('secretaire', 'admin', 'medecin', 'patient') NOT NULL,
+    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================
+-- Tables héritées
+-- =========================
+CREATE TABLE Secretaire (
+    id INT PRIMARY KEY,
+    FOREIGN KEY (id) REFERENCES Users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE Admin (
+    id INT PRIMARY KEY,
+    FOREIGN KEY (id) REFERENCES Users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE Medecin (
+    id INT PRIMARY KEY,
+    specialite VARCHAR(100),
+    numero_ordre VARCHAR(50),
+    FOREIGN KEY (id) REFERENCES Users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE Patient (
+    id INT PRIMARY KEY,
+    date_naissance DATE,
+    adresse TEXT,
+    telephone VARCHAR(20),
+    assurance_maladie VARCHAR(50),
+    FOREIGN KEY (id) REFERENCES Users(id) ON DELETE CASCADE
+);
+
+-- =========================
+-- Dossier médical
+-- =========================
+CREATE TABLE DossierMedical (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    idPatient INT NOT NULL,
+    observations TEXT,
+    traitements TEXT,
+    allergies TEXT,
+    antecedents TEXT,
+    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    date_modification DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (idPatient) REFERENCES Patient(id) ON DELETE CASCADE
+);
+
+-- =========================
+-- Ordonnance
+-- =========================
+CREATE TABLE Ordonnance (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    idPatient INT NOT NULL,
+    idMedecin INT NOT NULL,
+    date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    contenu TEXT NOT NULL,
+    medicaments TEXT,
+    posologie TEXT,
+    duree_traitement VARCHAR(50),
+    FOREIGN KEY (idPatient) REFERENCES Patient(id) ON DELETE CASCADE,
+    FOREIGN KEY (idMedecin) REFERENCES Medecin(id) ON DELETE CASCADE
+);
+
+-- =========================
+-- Rendez-vous
+-- =========================
+CREATE TABLE RendezVous (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    idPatient INT NOT NULL,
+    idMedecin INT NOT NULL,
+    date DATETIME NOT NULL,
+    statut ENUM('planifie', 'confirme', 'annule', 'termine') DEFAULT 'planifie',
+    motif TEXT,
+    duree INT DEFAULT 30,
+    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (idPatient) REFERENCES Patient(id) ON DELETE CASCADE,
+    FOREIGN KEY (idMedecin) REFERENCES Medecin(id) ON DELETE CASCADE
+);
+
+-- =========================
+-- Notification
+-- =========================
+CREATE TABLE Notification (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    idUser INT NOT NULL,
+    titre VARCHAR(255) NOT NULL,
+    contenu TEXT NOT NULL,
+    type ENUM('rendez_vous', 'ordonnance', 'facture', 'rappel', 'systeme') NOT NULL,
+    lien VARCHAR(255),
+    lu BOOLEAN DEFAULT FALSE,
+    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    date_lu DATETIME,
+    FOREIGN KEY (idUser) REFERENCES Users(id) ON DELETE CASCADE
+);
+
+-- =========================
+-- Facture
+-- =========================
+CREATE TABLE Facture (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    idPatient INT NOT NULL,
+    idRendezVous INT,
+    montant DECIMAL(10,2) NOT NULL,
+    date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    date_echeance DATE,
+    statutPaiement ENUM('en_attente', 'paye', 'annule', 'retard') DEFAULT 'en_attente',
+    details TEXT,
+    mode_paiement VARCHAR(50),
+    FOREIGN KEY (idPatient) REFERENCES Patient(id) ON DELETE CASCADE,
+    FOREIGN KEY (idRendezVous) REFERENCES RendezVous(id) ON DELETE SET NULL
+);
